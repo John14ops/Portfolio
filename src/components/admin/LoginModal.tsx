@@ -21,18 +21,27 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSuccess }) =
     setError('')
 
     try {
-      const { error } = await signIn(email, password)
+      const { data, error } = await signIn(email, password)
       
       if (error) {
-        setError('Email ou mot de passe incorrect')
-      } else {
+        console.error('Erreur de connexion:', error)
+        if (error.message.includes('Invalid login credentials')) {
+          setError('Email ou mot de passe incorrect')
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Veuillez confirmer votre email avant de vous connecter')
+        } else {
+          setError(`Erreur: ${error.message}`)
+        }
+      } else if (data?.user) {
+        console.log('Connexion réussie:', data.user)
         onSuccess()
         onClose()
         setEmail('')
         setPassword('')
       }
     } catch (err) {
-      setError('Une erreur s\'est produite')
+      console.error('Erreur inattendue:', err)
+      setError('Une erreur s\'est produite lors de la connexion')
     } finally {
       setLoading(false)
     }
