@@ -266,6 +266,17 @@ export const updateSiteSettings = async (settings: Partial<SiteSettings>) => {
     return { data: null, error: { message: 'Le nombre de projets doit être positif' } }
   }
 
+  // D'abord récupérer l'ID existant
+  const { data: existingSettings } = await supabase
+    .from('site_settings')
+    .select('id')
+    .limit(1)
+    .single()
+
+  if (!existingSettings) {
+    return { data: null, error: { message: 'Aucun paramètre trouvé' } }
+  }
+
   const { data, error } = await supabase
     .from('site_settings')
     .update({ 
@@ -278,7 +289,7 @@ export const updateSiteSettings = async (settings: Partial<SiteSettings>) => {
       location: settings.location?.trim(),
       updated_at: new Date().toISOString() 
     })
-    .eq('id', '1')
+    .eq('id', existingSettings.id)
     .select()
   return { data, error }
 }
