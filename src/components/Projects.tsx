@@ -13,7 +13,7 @@ const Projects: React.FC = () => {
     },
     {
       id: 2,
-      title: "Chez Kat",
+      title: "Free Use",
       description: "Plateforme de vente de créations personnalisées artisanales. Design élégant mettant en valeur les produits uniques avec galerie interactive et commandes sur mesure.",
       url: "https://chez-kat.vercel.app",
       technologies: ["HTML", "CSS", "JavaScript", "Design"],
