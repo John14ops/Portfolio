@@ -13,9 +13,13 @@ import {
   deleteProject,
   getSiteSettings,
   updateSiteSettings,
+  getContactSubmissions,
+  updateContactSubmissionStatus,
+  deleteContactSubmission,
   type Skill,
   type Project,
-  type SiteSettings
+  type SiteSettings,
+  type ContactSubmission
 } from '../../lib/supabase'
 
 interface AdminPanelProps {
@@ -25,13 +29,16 @@ interface AdminPanelProps {
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [user, setUser] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<'skills' | 'projects' | 'settings'>('skills')
+  const [activeTab, setActiveTab] = useState<'skills' | 'projects' | 'settings' | 'contacts'>('skills')
   const [skills, setSkills] = useState<Skill[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [settings, setSettings] = useState<SiteSettings | null>(null)
+  const [contacts, setContacts] = useState<ContactSubmission[]>([])
   const [loading, setLoading] = useState(true)
   const [editingItem, setEditingItem] = useState<any>(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -51,15 +58,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [skillsResult, projectsResult, settingsResult] = await Promise.all([
+      const [skillsResult, projectsResult, settingsResult, contactsResult] = await Promise.all([
         getSkills(),
         getProjects(),
-        getSiteSettings()
+        getSiteSettings(),
+        getContactSubmissions()
       ])
 
       if (skillsResult.data) setSkills(skillsResult.data)
       if (projectsResult.data) setProjects(projectsResult.data)
       if (settingsResult.data) setSettings(settingsResult.data)
+      if (contactsResult.data) setContacts(contactsResult.data)
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
@@ -74,63 +83,117 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
   const handleSaveSkill = async (skillData: any) => {
     try {
+      setError(null)
+      setSuccess(null)
+      
+      let result
       if (editingItem?.id) {
-        await updateSkill(editingItem.id, skillData)
+        result = await updateSkill(editingItem.id, skillData)
       } else {
-        await createSkill(skillData)
+        result = await createSkill(skillData)
       }
+      
+      if (result.error) {
+        setError(result.error.message || 'Erreur lors de la sauvegarde')
+        return
+      }
+      
       await loadData()
       setEditingItem(null)
       setIsCreating(false)
+      setSuccess(editingItem?.id ? 'Compétence mise à jour avec succès' : 'Compétence créée avec succès')
     } catch (error) {
       console.error('Error saving skill:', error)
+      setError('Erreur lors de la sauvegarde')
     }
   }
 
   const handleDeleteSkill = async (id: string) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer cette compétence ?')) {
       try {
-        await deleteSkill(id)
+        setError(null)
+        setSuccess(null)
+        
+        const result = await deleteSkill(id)
+        if (result.error) {
+          setError(result.error.message || 'Erreur lors de la suppression')
+          return
+        }
+        
         await loadData()
+        setSuccess('Compétence supprimée avec succès')
       } catch (error) {
         console.error('Error deleting skill:', error)
+        setError('Erreur lors de la suppression')
       }
     }
   }
 
   const handleSaveProject = async (projectData: any) => {
     try {
+      setError(null)
+      setSuccess(null)
+      
+      let result
       if (editingItem?.id) {
-        await updateProject(editingItem.id, projectData)
+        result = await updateProject(editingItem.id, projectData)
       } else {
-        await createProject(projectData)
+        result = await createProject(projectData)
       }
+      
+      if (result.error) {
+        setError(result.error.message || 'Erreur lors de la sauvegarde')
+        return
+      }
+      
       await loadData()
       setEditingItem(null)
       setIsCreating(false)
+      setSuccess(editingItem?.id ? 'Projet mis à jour avec succès' : 'Projet créé avec succès')
     } catch (error) {
       console.error('Error saving project:', error)
+      setError('Erreur lors de la sauvegarde')
     }
   }
 
   const handleDeleteProject = async (id: string) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
       try {
-        await deleteProject(id)
+        setError(null)
+        setSuccess(null)
+        
+        const result = await deleteProject(id)
+        if (result.error) {
+          setError(result.error.message || 'Erreur lors de la suppression')
+          return
+        }
+        
         await loadData()
+        setSuccess('Projet supprimé avec succès')
       } catch (error) {
         console.error('Error deleting project:', error)
+        setError('Erreur lors de la suppression')
       }
     }
   }
 
   const handleSaveSettings = async (settingsData: any) => {
     try {
-      await updateSiteSettings(settingsData)
+      setError(null)
+      setSuccess(null)
+      
+      const result = await updateSiteSettings(settingsData)
+      if (result.error) {
+        setError(result.error.message || 'Erreur lors de la sauvegarde')
+        return
+      }
+      
       await loadData()
       setEditingItem(null)
+      setSuccess('Paramètres mis à jour avec succès')
     } catch (error) {
       console.error('Error saving settings:', error)
+      setError('Erreur lors de la sauvegarde')
     }
   }
 
@@ -171,6 +234,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           {[
             { id: 'skills', label: 'Compétences' },
             { id: 'projects', label: 'Projets' },
+            { id: 'contacts', label: 'Messages' },
             { id: 'settings', label: 'Paramètres' }
           ].map((tab) => (
             <button
@@ -189,6 +253,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-6">
+          {/* Error/Success Messages */}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-red-800 dark:text-red-200">{error}</p>
+            </div>
+          )}
+          {success && (
+            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <p className="text-green-800 dark:text-green-200">{success}</p>
+            </div>
+          )}
+          
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
@@ -223,6 +299,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   onCancel={() => {
                     setEditingItem(null)
                     setIsCreating(false)
+                  }}
+                />
+              )}
+
+              {activeTab === 'contacts' && (
+                <ContactsTab
+                  contacts={contacts}
+                  onStatusUpdate={async (id, status) => {
+                    await updateContactSubmissionStatus(id, status)
+                    await loadData()
+                  }}
+                  onDelete={async (id) => {
+                    await deleteContactSubmission(id)
+                    await loadData()
                   }}
                 />
               )}
@@ -797,6 +887,113 @@ const SettingsTab: React.FC<any> = ({ settings, onEdit, editingItem, onSave, onC
               <p className="text-gray-900 dark:text-white">{settings.email}</p>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Contacts Tab Component
+const ContactsTab: React.FC<{
+  contacts: ContactSubmission[]
+  onStatusUpdate: (id: string, status: 'new' | 'read' | 'replied') => void
+  onDelete: (id: string) => void
+}> = ({ contacts, onStatusUpdate, onDelete }) => {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'new':
+        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+      case 'read':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+      case 'replied':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+    }
+  }
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'new':
+        return 'Nouveau'
+      case 'read':
+        return 'Lu'
+      case 'replied':
+        return 'Répondu'
+      default:
+        return status
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Messages de Contact</h3>
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          {contacts.length} message{contacts.length > 1 ? 's' : ''}
+        </div>
+      </div>
+
+      {contacts.length === 0 ? (
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+          Aucun message de contact pour le moment.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {contacts.map(contact => (
+            <div key={contact.id} className="bg-white dark:bg-gray-700 rounded-lg p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h4 className="font-bold text-gray-900 dark:text-white">{contact.name}</h4>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(contact.status)}`}>
+                      {getStatusLabel(contact.status)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    {contact.email}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    {formatDate(contact.created_at)}
+                  </p>
+                  <h5 className="font-semibold text-gray-900 dark:text-white mb-2">
+                    {contact.subject}
+                  </h5>
+                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                    {contact.message}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                  <select
+                    value={contact.status}
+                    onChange={(e) => onStatusUpdate(contact.id, e.target.value as any)}
+                    className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-yellow-500"
+                  >
+                    <option value="new">Nouveau</option>
+                    <option value="read">Lu</option>
+                    <option value="replied">Répondu</option>
+                  </select>
+                  <button
+                    onClick={() => onDelete(contact.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors duration-300"
+                    title="Supprimer"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
